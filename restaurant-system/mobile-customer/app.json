@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "Spice Garden Customer",
+    "slug": "spice-garden-customer",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#ea580c"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#ea580c"
+      }
+    }
+  }
+}
