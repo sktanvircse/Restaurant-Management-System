@@ -288,8 +288,9 @@ export default function CheckoutPage() {
 
               <div className="divide-y divide-stone-100 max-h-80 overflow-y-auto pr-1">
                 {cart.map((item, idx) => {
-                  const addonsSum = item.addons.reduce((a, b) => a + Number(b.price), 0);
-                  const lineTotal = (Number(item.price) + addonsSum) * item.quantity;
+                  const itemPrice = isNaN(Number(item.price)) ? 0 : Number(item.price);
+                  const addonsSum = (item.addons || []).reduce((a, b) => a + (isNaN(Number(b.price)) ? 0 : Number(b.price)), 0);
+                  const lineTotal = (itemPrice + addonsSum) * (item.quantity || 1);
 
                   return (
                     <div key={idx} className="py-3 flex justify-between items-start">
@@ -298,9 +299,9 @@ export default function CheckoutPage() {
                         {item.variantName && (
                           <div className="text-xs text-orange-600">• {item.variantName}</div>
                         )}
-                        {item.addons.map((a, i) => (
+                        {(item.addons || []).map((a, i) => (
                           <div key={i} className="text-xs text-stone-500">
-                            + {a.name} (৳{Number(a.price)})
+                            + {a.name} (৳{Number(a.price || 0).toFixed(2)})
                           </div>
                         ))}
                         <div className="text-xs text-stone-400">৳{lineTotal.toFixed(2)}</div>

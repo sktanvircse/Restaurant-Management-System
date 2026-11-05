@@ -51,7 +51,12 @@ export default function CustomerMenuPage() {
   const handleAddToCart = () => {
     if (!activeItem) return;
     const basePrice = Number(activeItem.basePrice || activeItem.price || 0);
-    const price = selectedVariant ? Number(selectedVariant.price || selectedVariant.priceModifier ? basePrice + Number(selectedVariant.priceModifier) : basePrice) : basePrice;
+    const price = selectedVariant
+      ? (selectedVariant.price != null
+          ? Number(selectedVariant.price)
+          : basePrice + Number(selectedVariant.priceModifier || 0))
+      : basePrice;
+
     addItem({
       menuItemId: activeItem.id,
       name: activeItem.name,
@@ -59,7 +64,7 @@ export default function CustomerMenuPage() {
       quantity: 1,
       variantId: selectedVariant?.id,
       variantName: selectedVariant?.name,
-      addons: selectedAddons.map((a) => ({ addonId: a.id, name: a.name, price: Number(a.price) })),
+      addons: selectedAddons.map((a) => ({ addonId: a.id, name: a.name, price: Number(a.price || 0) })),
       notes,
     });
     setActiveItem(null);
@@ -170,10 +175,11 @@ export default function CustomerMenuPage() {
                         setSelectedVariant(item.variants?.[0] || null);
                         setSelectedAddons([]);
                       } else {
+                        const itemBase = Number(item.basePrice || item.price || 0);
                         addItem({
                           menuItemId: item.id,
                           name: item.name,
-                          price: Number(item.price),
+                          price: itemBase,
                           quantity: 1,
                           addons: [],
                         });

@@ -34,7 +34,22 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     const saved = localStorage.getItem('sg_customer_cart');
     if (saved) {
       try {
-        setCart(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          // Clean any legacy corrupted items with NaN prices
+          const sanitized = parsed.map((item: any) => ({
+            ...item,
+            price: isNaN(Number(item.price)) ? 0 : Number(item.price),
+            quantity: isNaN(Number(item.quantity)) || Number(item.quantity) <= 0 ? 1 : Number(item.quantity),
+            addons: Array.isArray(item.addons)
+              ? item.addons.map((a: any) => ({
+                  ...a,
+                  price: isNaN(Number(a.price)) ? 0 : Number(a.price),
+                }))
+              : [],
+          }));
+          setCart(sanitized);
+        }
       } catch (e) {}
     }
   }, []);
@@ -44,7 +59,19 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [cart]);
 
   const addItem = (item: CustomerCartItem) => {
-    setCart((prev) => [...prev, item]);
+    const safePrice = isNaN(Number(item.price)) ? 0 : Number(item.price);
+    const safeItem = {
+      ...item,
+      price: safePrice,
+      quantity: isNaN(Number(item.quantity)) || Number(item.quantity) <= 0 ? 1 : Number(item.quantity),
+      addons: Array.isArray(item.addons)
+        ? item.addons.map((a) => ({
+            ...a,
+            price: isNaN(Number(a.price)) ? 0 : Number(a.price),
+          }))
+        : [],
+    };
+    setCart((prev) => [...prev, safeItem]);
   };
 
   const updateQty = (index: number, delta: number) => {
@@ -65,8 +92,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const clearCart = () => setCart([]);
 
   const subtotal = cart.reduce((acc, it) => {
-    const addonsCost = it.addons.reduce((sum, a) => sum + Number(a.price), 0);
-    return acc + (Number(it.price) + addonsCost) * it.quantity;
+    const addonsCost = (it.addons || []).reduce((sum, a) => sum + (isNaN(Number(a.price)) ? 0 : Number(a.price)), 0);
+    const itemPrice = isNaN(Number(it.price)) ? 0 : Number(it.price);
+    return acc + (itemPrice + addonsCost) * (it.quantity || 1);
   }, 0);
 
   return (
