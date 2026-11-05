@@ -117,6 +117,7 @@ export const createApp = (): Application => {
   apiRouter.use('/delivery', deliveryRoutes);
   apiRouter.use('/reservations', reservationsRoutes);
   apiRouter.use('/inventory', inventoryRoutes);
+  apiRouter.use('/suppliers', suppliersRoutes);
   apiRouter.use('/supply', suppliersRoutes);
   apiRouter.use('/hr', hrRoutes);
   apiRouter.use('/expenses', expensesRoutes);
@@ -127,6 +128,7 @@ export const createApp = (): Application => {
   apiRouter.use('/notifications', notificationsRoutes);
   apiRouter.use('/branches', branchesRoutes);
   apiRouter.use('/settings', settingsRoutes);
+  apiRouter.use('/audit', auditRoutes);
   apiRouter.use('/audit-logs', auditRoutes);
 
   // Support both /api/v1 and /api for seamless frontend/mobile routing

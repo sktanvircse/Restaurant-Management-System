@@ -73,6 +73,13 @@ router.patch(
 // DELIVERIES & DISPATCH
 // ==========================================
 router.get(
+  '/',
+  authenticate,
+  authorize('delivery', 'view'),
+  deliveryController.getActiveDeliveries
+);
+
+router.get(
   '/active',
   authenticate,
   authorize('delivery', 'view'),
