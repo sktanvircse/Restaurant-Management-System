@@ -105,6 +105,32 @@ export class OrdersController {
       next(error);
     }
   };
+
+  getOrderByNumber = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const order = await ordersService.getOrderByNumber(req.params.orderNumber);
+      if (!order) {
+        res.status(404).json({ success: false, message: 'Order not found' });
+        return;
+      }
+      apiSuccess(res, order);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  updateKitchenTicketStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const ticketId = parseInt(req.params.ticketId, 10);
+      const ticket = await ordersService.updateKitchenTicketStatus(
+        ticketId,
+        req.body.status
+      );
+      apiSuccess(res, ticket, 'Ticket status updated');
+    } catch (error) {
+      next(error);
+    }
+  };
 }
 
 export const ordersController = new OrdersController();

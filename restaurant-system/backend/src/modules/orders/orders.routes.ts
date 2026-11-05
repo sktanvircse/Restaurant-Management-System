@@ -33,6 +33,20 @@ router.get(
   ordersController.getKitchenOrders
 );
 
+// Bump kitchen ticket status (PREPARING / READY)
+router.patch(
+  '/kitchen/:ticketId/status',
+  authenticate,
+  authorize('kitchen', 'edit'),
+  ordersController.updateKitchenTicketStatus
+);
+
+// Get order by human-readable orderNumber (customer tracking)
+router.get(
+  '/by-number/:orderNumber',
+  ordersController.getOrderByNumber
+);
+
 // ==========================================
 // ORDER MANAGEMENT (Staff & Customers)
 // ==========================================

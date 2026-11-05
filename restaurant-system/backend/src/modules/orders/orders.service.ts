@@ -750,6 +750,62 @@ export class OrdersService {
 
     return updated;
   }
+
+  // ─────────────────────────────────────────────────────────────
+  // Get order by human-readable orderNumber (for customer tracking)
+  // ─────────────────────────────────────────────────────────────
+  async getOrderByNumber(orderNumber: string) {
+    const order = await prisma.order.findFirst({
+      where: { orderNumber },
+      include: {
+        items: {
+          include: {
+            menuItem: { select: { name: true } },
+            variant: { select: { name: true } },
+          },
+        },
+        tableSession: {
+          include: {
+            table: { select: { tableNumber: true } },
+          },
+        },
+        delivery: true,
+      },
+    });
+    return order;
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Bump a kitchen ticket status (PREPARING → READY → BUMPED)
+  // ─────────────────────────────────────────────────────────────
+  async updateKitchenTicketStatus(ticketId: number, status: 'PREPARING' | 'READY') {
+    const ticket = await prisma.kitchenTicket.findUnique({
+      where: { id: ticketId },
+      include: { order: { select: { branchId: true, orderNumber: true } } },
+    });
+    if (!ticket) throw new Error('Ticket not found');
+
+    const updated = await prisma.kitchenTicket.update({
+      where: { id: ticketId },
+      data: { status },
+    });
+
+    // Emit socket events
+    if (status === 'READY') {
+      io.to(`kitchen:${ticket.branchId}`).emit('kitchen:ready', {
+        ticketId,
+        orderId: ticket.orderId,
+        orderNumber: ticket.order.orderNumber,
+      });
+    } else {
+      io.to(`kitchen:${ticket.branchId}`).emit('order:status', {
+        orderId: ticket.orderId,
+        status,
+      });
+    }
+
+    return updated;
+  }
 }
 
 export const ordersService = new OrdersService();
