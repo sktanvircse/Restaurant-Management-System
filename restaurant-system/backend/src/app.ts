@@ -18,6 +18,10 @@ import { uploadRoutes } from './modules/upload/upload.routes';
 import { menuRoutes } from './modules/menu/menu.routes';
 import { tablesRoutes } from './modules/tables/tables.routes';
 import { ordersRoutes } from './modules/orders/orders.routes';
+import { paymentsRoutes } from './modules/payments/payments.routes';
+import { cashRegisterRoutes } from './modules/cash-register/cash-register.routes';
+import { moneyReceivedRoutes } from './modules/money-received/money-received.routes';
+import { refundsRoutes } from './modules/refunds/refunds.routes';
 
 export const createApp = (): Application => {
   const app = express();
@@ -91,6 +95,10 @@ export const createApp = (): Application => {
   apiRouter.use('/menu', menuRoutes);
   apiRouter.use('/tables', tablesRoutes);
   apiRouter.use('/orders', ordersRoutes);
+  apiRouter.use('/payments', paymentsRoutes);
+  apiRouter.use('/cash-register', cashRegisterRoutes);
+  apiRouter.use('/money-received', moneyReceivedRoutes);
+  apiRouter.use('/refunds', refundsRoutes);
 
   app.use('/api/v1', apiRouter);
 
