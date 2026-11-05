@@ -158,16 +158,21 @@ export default function POSPage() {
   // Add Item to Cart (from Modal or direct)
   const addItemToCart = () => {
     if (!activeItemModal) return;
-    const basePrice = selectedVariant ? Number(selectedVariant.price) : Number(activeItemModal.price);
+    const itemBase = Number(activeItemModal.basePrice || activeItemModal.price || 0);
+    const calculatedPrice = selectedVariant
+      ? (selectedVariant.price != null
+          ? Number(selectedVariant.price)
+          : itemBase + Number(selectedVariant.priceModifier || 0))
+      : itemBase;
 
     const newItem: CartItem = {
       menuItemId: activeItemModal.id,
       name: activeItemModal.name,
-      price: basePrice,
+      price: calculatedPrice,
       quantity: 1,
       variantId: selectedVariant?.id,
       variantName: selectedVariant?.name,
-      addons: selectedAddons.map((a) => ({ addonId: a.id, name: a.name, price: Number(a.price) })),
+      addons: selectedAddons.map((a) => ({ addonId: a.id, name: a.name, price: Number(a.price || 0) })),
       notes: itemNotes,
     };
 
@@ -394,12 +399,13 @@ export default function POSPage() {
                       setItemNotes('');
                     } else {
                       // Add directly
+                      const itemBase = Number(item.basePrice || item.price || 0);
                       setCart([
                         ...cart,
                         {
                           menuItemId: item.id,
                           name: item.name,
-                          price: Number(item.price),
+                          price: itemBase,
                           quantity: 1,
                           addons: [],
                         },
@@ -571,20 +577,24 @@ export default function POSPage() {
               <div>
                 <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Choose Variant</label>
                 <div className="grid grid-cols-2 gap-2 mt-2">
-                  {activeItemModal.variants.map((v: any) => (
-                    <button
-                      key={v.id}
-                      onClick={() => setSelectedVariant(v)}
-                      className={`p-2.5 rounded-xl border text-xs font-bold text-left transition ${
-                        selectedVariant?.id === v.id
-                          ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-                          : 'border-gray-200 hover:bg-gray-50'
-                      }`}
-                    >
-                      <div>{v.name}</div>
-                      <div className="text-gray-500">৳{Number(v.price).toFixed(2)}</div>
-                    </button>
-                  ))}
+                  {activeItemModal.variants.map((v: any) => {
+                    const itemBase = Number(activeItemModal.basePrice || activeItemModal.price || 0);
+                    const varPrice = v.price != null ? Number(v.price) : itemBase + Number(v.priceModifier || 0);
+                    return (
+                      <button
+                        key={v.id}
+                        onClick={() => setSelectedVariant(v)}
+                        className={`p-2.5 rounded-xl border text-xs font-bold text-left transition ${
+                          selectedVariant?.id === v.id
+                            ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                            : 'border-gray-200 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div>{v.name}</div>
+                        <div className="text-gray-500">৳{varPrice.toFixed(2)}</div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}

@@ -230,20 +230,24 @@ export default function CustomerMenuPage() {
               <div>
                 <label className="text-xs font-bold text-stone-500 uppercase">Select Portion Size</label>
                 <div className="grid grid-cols-2 gap-2 mt-2">
-                  {activeItem.variants.map((v: any) => (
-                    <button
-                      key={v.id}
-                      onClick={() => setSelectedVariant(v)}
-                      className={`p-2.5 rounded-xl border text-xs font-bold text-left transition ${
-                        selectedVariant?.id === v.id
-                          ? 'border-orange-600 bg-orange-50 text-orange-700'
-                          : 'border-stone-200 hover:bg-stone-50'
-                      }`}
-                    >
-                      <div>{v.name}</div>
-                      <div className="text-stone-500 font-normal">৳{Number(v.price).toFixed(2)}</div>
-                    </button>
-                  ))}
+                  {activeItem.variants.map((v: any) => {
+                    const itemBase = Number(activeItem.basePrice || activeItem.price || 0);
+                    const varPrice = v.price != null ? Number(v.price) : itemBase + Number(v.priceModifier || 0);
+                    return (
+                      <button
+                        key={v.id}
+                        onClick={() => setSelectedVariant(v)}
+                        className={`p-2.5 rounded-xl border text-xs font-bold text-left transition ${
+                          selectedVariant?.id === v.id
+                            ? 'border-orange-600 bg-orange-50 text-orange-700'
+                            : 'border-stone-200 hover:bg-stone-50'
+                        }`}
+                      >
+                        <div>{v.name}</div>
+                        <div className="text-stone-500 font-normal">৳{varPrice.toFixed(2)}</div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
