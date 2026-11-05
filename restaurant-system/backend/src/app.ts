@@ -129,7 +129,9 @@ export const createApp = (): Application => {
   apiRouter.use('/settings', settingsRoutes);
   apiRouter.use('/audit-logs', auditRoutes);
 
+  // Support both /api/v1 and /api for seamless frontend/mobile routing
   app.use('/api/v1', apiRouter);
+  app.use('/api', apiRouter);
   app.use('/api/docs', docsRoutes);
 
   // 10. 404 & Global Error Handler
