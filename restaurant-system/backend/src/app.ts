@@ -31,6 +31,12 @@ import { expensesRoutes } from './modules/expenses/expenses.routes';
 import { customersRoutes } from './modules/customers/customers.routes';
 import { couponsRoutes } from './modules/coupons/coupons.routes';
 import { reviewsRoutes } from './modules/reviews/reviews.routes';
+import { reportsRoutes } from './modules/reports/reports.routes';
+import { notificationsRoutes } from './modules/notifications/notifications.routes';
+import { branchesRoutes } from './modules/branches/branches.routes';
+import { settingsRoutes } from './modules/settings/settings.routes';
+import { auditRoutes } from './modules/audit/audit.routes';
+import { docsRoutes } from './modules/docs.routes';
 
 export const createApp = (): Application => {
   const app = express();
@@ -117,8 +123,14 @@ export const createApp = (): Application => {
   apiRouter.use('/customers', customersRoutes);
   apiRouter.use('/coupons', couponsRoutes);
   apiRouter.use('/reviews', reviewsRoutes);
+  apiRouter.use('/reports', reportsRoutes);
+  apiRouter.use('/notifications', notificationsRoutes);
+  apiRouter.use('/branches', branchesRoutes);
+  apiRouter.use('/settings', settingsRoutes);
+  apiRouter.use('/audit-logs', auditRoutes);
 
   app.use('/api/v1', apiRouter);
+  app.use('/api/docs', docsRoutes);
 
   // 10. 404 & Global Error Handler
   app.use(notFoundHandler);
