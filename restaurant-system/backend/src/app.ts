@@ -26,6 +26,11 @@ import { deliveryRoutes } from './modules/delivery/delivery.routes';
 import { reservationsRoutes } from './modules/reservations/reservations.routes';
 import { inventoryRoutes } from './modules/inventory/inventory.routes';
 import { suppliersRoutes } from './modules/suppliers/suppliers.routes';
+import { hrRoutes } from './modules/hr/hr.routes';
+import { expensesRoutes } from './modules/expenses/expenses.routes';
+import { customersRoutes } from './modules/customers/customers.routes';
+import { couponsRoutes } from './modules/coupons/coupons.routes';
+import { reviewsRoutes } from './modules/reviews/reviews.routes';
 
 export const createApp = (): Application => {
   const app = express();
@@ -107,6 +112,11 @@ export const createApp = (): Application => {
   apiRouter.use('/reservations', reservationsRoutes);
   apiRouter.use('/inventory', inventoryRoutes);
   apiRouter.use('/supply', suppliersRoutes);
+  apiRouter.use('/hr', hrRoutes);
+  apiRouter.use('/expenses', expensesRoutes);
+  apiRouter.use('/customers', customersRoutes);
+  apiRouter.use('/coupons', couponsRoutes);
+  apiRouter.use('/reviews', reviewsRoutes);
 
   app.use('/api/v1', apiRouter);
 
