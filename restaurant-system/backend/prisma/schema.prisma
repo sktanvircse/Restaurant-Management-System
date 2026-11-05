@@ -1,0 +1,1313 @@
+// =============================================================================
+// RESTAURANT MANAGEMENT SYSTEM - PRISMA SCHEMA
+// Single MySQL database, all tables, one source of truth.
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// BRANCH
+// =============================================================================
+
+model Branch {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(100)
+  address     String   @db.VarChar(255)
+  phone       String   @db.VarChar(20)
+  email       String?  @db.VarChar(100)
+  timezone    String   @default("Asia/Dhaka") @db.VarChar(50)
+  currency    String   @default("BDT") @db.VarChar(10)
+  taxRate     Decimal  @default(0) @db.Decimal(5, 2)
+  serviceChargeRate Decimal @default(0) @db.Decimal(5, 2)
+  logoUrl     String?  @db.VarChar(500)
+  isActive    Boolean  @default(true)
+  openingTime String?  @db.VarChar(10)   // "09:00"
+  closingTime String?  @db.VarChar(10)   // "23:00"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  users                User[]
+  employees            Employee[]
+  categories           Category[]
+  menuItems            MenuItem[]
+  tables               Table[]
+  orders               Order[]
+  reservations         Reservation[]
+  deliveryZones        DeliveryZone[]
+  cashRegisterSessions CashRegisterSession[]
+  moneyReceived        MoneyReceived[]
+  ingredients          Ingredient[]
+  stockMovements       StockMovement[]
+  suppliers            Supplier[]
+  purchaseOrders       PurchaseOrder[]
+  wastages             Wastage[]
+  expenses             Expense[]
+  expenseCategories    ExpenseCategory[]
+  coupons              Coupon[]
+  reviews              Review[]
+  kitchenTickets       KitchenTicket[]
+  shifts               Shift[]
+  settings             Setting[]
+  riders               Rider[]
+  paymentMethods       PaymentMethod[]
+
+  @@index([isActive])
+  @@map("branches")
+}
+
+// =============================================================================
+// ROLES & PERMISSIONS (DB-driven RBAC)
+// =============================================================================
+
+model Role {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique @db.VarChar(50)   // super_admin, admin, manager, etc.
+  description String?  @db.VarChar(255)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users           User[]
+  rolePermissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          Int    @id @default(autoincrement())
+  module      String @db.VarChar(50)   // orders, menu, inventory, etc.
+  action      String @db.VarChar(50)   // view, create, edit, delete, approve, export
+  description String? @db.VarChar(255)
+
+  rolePermissions RolePermission[]
+
+  @@unique([module, action])
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       Int
+  permissionId Int
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+// =============================================================================
+// USERS (staff)
+// =============================================================================
+
+model User {
+  id           Int       @id @default(autoincrement())
+  branchId     Int
+  roleId       Int
+  name         String    @db.VarChar(100)
+  email        String    @unique @db.VarChar(100)
+  phone        String?   @db.VarChar(20)
+  passwordHash String    @db.VarChar(255)
+  refreshToken String?   @db.Text
+  avatar       String?   @db.VarChar(500)
+  isActive     Boolean   @default(true)
+  lastLogin    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  createdBy    Int?
+  deletedAt    DateTime?
+
+  branch   Branch @relation(fields: [branchId], references: [id])
+  role     Role   @relation(fields: [roleId], references: [id])
+  creator  User?  @relation("UserCreatedBy", fields: [createdBy], references: [id])
+  createdUsers User[] @relation("UserCreatedBy")
+
+  // Relations
+  employee          Employee?
+  ordersCreated     Order[]             @relation("OrderCreatedBy")
+  ordersAssigned    Order[]             @relation("OrderAssignedTo")
+  auditLogs         AuditLog[]
+  notifications     Notification[]
+  deviceTokens      DeviceToken[]
+  attendance        Attendance[]
+  leavesApproved    Leave[]             @relation("LeaveApprovedBy")
+  salariesPaid      Salary[]            @relation("SalaryPaidBy")
+  stockMovements    StockMovement[]
+  cashRegSessions   CashRegisterSession[]
+  moneyReceived     MoneyReceived[]
+  expenses          Expense[]           @relation("ExpenseCreatedBy")
+  refundsRequested  Refund[]            @relation("RefundRequestedBy")
+  refundsApproved   Refund[]            @relation("RefundApprovedBy")
+  settingsUpdated   Setting[]
+  purchaseOrders    PurchaseOrder[]
+  wastages          Wastage[]
+  statusHistory     OrderStatusHistory[] @relation("StatusChangedBy")
+  rider             Rider?
+
+  @@index([branchId])
+  @@index([roleId])
+  @@index([email])
+  @@index([deletedAt])
+  @@map("users")
+}
+
+// =============================================================================
+// EMPLOYEES & HR
+// =============================================================================
+
+model Employee {
+  id              Int       @id @default(autoincrement())
+  userId          Int       @unique
+  branchId        Int
+  designation     String    @db.VarChar(100)
+  basicSalary     Decimal   @db.Decimal(10, 2)
+  bankAccount     String?   @db.VarChar(100)
+  bankName        String?   @db.VarChar(100)
+  nid             String?   @db.VarChar(50)
+  joinDate        DateTime  @db.Date
+  endDate         DateTime? @db.Date
+  emergencyName   String?   @db.VarChar(100)
+  emergencyPhone  String?   @db.VarChar(20)
+  emergencyRelation String? @db.VarChar(50)
+  documentUrls    Json?     // array of uploaded file URLs
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user       User       @relation(fields: [userId], references: [id])
+  branch     Branch     @relation(fields: [branchId], references: [id])
+  attendance Attendance[]
+  leaves     Leave[]
+  salaries   Salary[]
+  employeeShifts EmployeeShift[]
+
+  @@index([branchId])
+  @@map("employees")
+}
+
+model Shift {
+  id          Int      @id @default(autoincrement())
+  branchId    Int
+  name        String   @db.VarChar(50)   // Morning, Evening, Night
+  startTime   String   @db.VarChar(5)    // "08:00"
+  endTime     String   @db.VarChar(5)    // "16:00"
+  daysOfWeek  String   @db.VarChar(50)   // "1,2,3,4,5" (Mon-Fri)
+  createdAt   DateTime @default(now())
+
+  branch         Branch          @relation(fields: [branchId], references: [id])
+  employeeShifts EmployeeShift[]
+
+  @@map("shifts")
+}
+
+model EmployeeShift {
+  id            Int      @id @default(autoincrement())
+  employeeId    Int
+  shiftId       Int
+  effectiveFrom DateTime @db.Date
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+  shift    Shift    @relation(fields: [shiftId], references: [id])
+
+  @@map("employee_shifts")
+}
+
+model Attendance {
+  id         Int       @id @default(autoincrement())
+  employeeId Int
+  userId     Int
+  date       DateTime  @db.Date
+  clockIn    DateTime?
+  clockOut   DateTime?
+  status     AttendanceStatus @default(PRESENT)
+  note       String?   @db.VarChar(255)
+  createdAt  DateTime  @default(now())
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+  user     User     @relation(fields: [userId], references: [id])
+
+  @@unique([employeeId, date])
+  @@index([date])
+  @@map("attendance")
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  HALF_DAY
+  HOLIDAY
+  ON_LEAVE
+}
+
+model Leave {
+  id          Int         @id @default(autoincrement())
+  employeeId  Int
+  fromDate    DateTime    @db.Date
+  toDate      DateTime    @db.Date
+  type        LeaveType
+  reason      String      @db.Text
+  status      LeaveStatus @default(PENDING)
+  approvedBy  Int?
+  approvedAt  DateTime?
+  note        String?     @db.VarChar(255)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+  approver User?    @relation("LeaveApprovedBy", fields: [approvedBy], references: [id])
+
+  @@index([employeeId])
+  @@map("leaves")
+}
+
+enum LeaveType {
+  ANNUAL
+  SICK
+  CASUAL
+  MATERNITY
+  PATERNITY
+  UNPAID
+  OTHER
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model Salary {
+  id               Int          @id @default(autoincrement())
+  employeeId       Int
+  month            Int          // 1-12
+  year             Int
+  basicSalary      Decimal      @db.Decimal(10, 2)
+  allowances       Decimal      @default(0) @db.Decimal(10, 2)
+  deductions       Decimal      @default(0) @db.Decimal(10, 2)
+  advanceDeducted  Decimal      @default(0) @db.Decimal(10, 2)
+  netSalary        Decimal      @db.Decimal(10, 2)
+  status           SalaryStatus @default(PENDING)
+  paidAt           DateTime?
+  paidBy           Int?
+  notes            String?      @db.VarChar(255)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+  paidByUser User?  @relation("SalaryPaidBy", fields: [paidBy], references: [id])
+
+  @@unique([employeeId, month, year])
+  @@map("salaries")
+}
+
+enum SalaryStatus {
+  PENDING
+  APPROVED
+  PAID
+  CANCELLED
+}
+
+// =============================================================================
+// CUSTOMERS
+// =============================================================================
+
+model Customer {
+  id            Int       @id @default(autoincrement())
+  name          String    @db.VarChar(100)
+  email         String?   @unique @db.VarChar(100)
+  phone         String?   @db.VarChar(20)
+  passwordHash  String?   @db.VarChar(255)
+  otp           String?   @db.VarChar(6)
+  otpExpiresAt  DateTime?
+  avatar        String?   @db.VarChar(500)
+  loyaltyPoints Int       @default(0)
+  refreshToken  String?   @db.Text
+  isGuest       Boolean   @default(false)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  addresses          Address[]
+  orders             Order[]
+  reviews            Review[]
+  loyaltyTransactions LoyaltyTransaction[]
+  couponUsages       CouponUsage[]
+  reservations       Reservation[]
+  notifications      Notification[]
+  deviceTokens       DeviceToken[]
+
+  @@index([email])
+  @@index([phone])
+  @@index([deletedAt])
+  @@map("customers")
+}
+
+model Address {
+  id         Int      @id @default(autoincrement())
+  customerId Int
+  label      String   @default("Home") @db.VarChar(50)
+  line1      String   @db.VarChar(255)
+  line2      String?  @db.VarChar(255)
+  city       String   @db.VarChar(100)
+  area       String?  @db.VarChar(100)
+  postalCode String?  @db.VarChar(20)
+  lat        Decimal? @db.Decimal(10, 8)
+  lng        Decimal? @db.Decimal(11, 8)
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  customer   Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  deliveries Delivery[]
+
+  @@index([customerId])
+  @@map("addresses")
+}
+
+// =============================================================================
+// MENU
+// =============================================================================
+
+model Category {
+  id        Int       @id @default(autoincrement())
+  branchId  Int
+  parentId  Int?
+  name      String    @db.VarChar(100)
+  slug      String    @db.VarChar(100)
+  image     String?   @db.VarChar(500)
+  sortOrder Int       @default(0)
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  branch    Branch     @relation(fields: [branchId], references: [id])
+  parent    Category?  @relation("CategoryParent", fields: [parentId], references: [id])
+  children  Category[] @relation("CategoryParent")
+  menuItems MenuItem[]
+
+  @@unique([branchId, slug])
+  @@index([branchId, isActive])
+  @@map("categories")
+}
+
+model MenuItem {
+  id          Int       @id @default(autoincrement())
+  categoryId  Int
+  branchId    Int
+  name        String    @db.VarChar(100)
+  slug        String    @db.VarChar(100)
+  description String?   @db.Text
+  image       String?   @db.VarChar(500)
+  basePrice   Decimal   @db.Decimal(10, 2)
+  station     String    @default("MAIN") @db.VarChar(30) // GRILL, FRY, DRINKS, DESSERT, MAIN
+  isAvailable Boolean   @default(true)
+  isFeatured  Boolean   @default(false)
+  allergens   String?   @db.VarChar(255) // comma-separated: "nuts,gluten,dairy"
+  prepTime    Int       @default(15)     // minutes
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  createdBy   Int?
+  deletedAt   DateTime?
+
+  category   Category     @relation(fields: [categoryId], references: [id])
+  branch     Branch       @relation(fields: [branchId], references: [id])
+  variants   ItemVariant[]
+  addonGroups AddonGroup[]
+  recipes    Recipe[]
+  orderItems OrderItem[]
+
+  @@unique([branchId, slug])
+  @@index([branchId, categoryId, isAvailable])
+  @@index([deletedAt])
+  @@map("menu_items")
+}
+
+model ItemVariant {
+  id          Int     @id @default(autoincrement())
+  menuItemId  Int
+  name        String  @db.VarChar(50)   // Small, Medium, Large
+  priceModifier Decimal @default(0) @db.Decimal(10, 2)
+  isDefault   Boolean @default(false)
+  isAvailable Boolean @default(true)
+
+  menuItem   MenuItem    @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  recipes    Recipe[]
+  orderItems OrderItem[]
+
+  @@map("item_variants")
+}
+
+model AddonGroup {
+  id         Int     @id @default(autoincrement())
+  menuItemId Int
+  name       String  @db.VarChar(100)   // "Choose your sauce", "Extra toppings"
+  isRequired Boolean @default(false)
+  minSelect  Int     @default(0)
+  maxSelect  Int     @default(1)
+
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  addons   Addon[]
+
+  @@map("addon_groups")
+}
+
+model Addon {
+  id          Int     @id @default(autoincrement())
+  addonGroupId Int
+  name        String  @db.VarChar(100)
+  price       Decimal @default(0) @db.Decimal(10, 2)
+  isAvailable Boolean @default(true)
+
+  addonGroup      AddonGroup       @relation(fields: [addonGroupId], references: [id], onDelete: Cascade)
+  orderItemAddons OrderItemAddon[]
+
+  @@map("addons")
+}
+
+// =============================================================================
+// INVENTORY & RECIPES
+// =============================================================================
+
+model Ingredient {
+  id                Int      @id @default(autoincrement())
+  branchId          Int
+  name              String   @db.VarChar(100)
+  unit              String   @db.VarChar(20)   // kg, g, L, ml, pcs
+  currentStock      Decimal  @default(0) @db.Decimal(10, 3)
+  lowStockThreshold Decimal  @default(0) @db.Decimal(10, 3)
+  costPerUnit       Decimal  @default(0) @db.Decimal(10, 2)
+  supplierId        Int?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  deletedAt         DateTime?
+
+  branch         Branch          @relation(fields: [branchId], references: [id])
+  supplier       Supplier?       @relation(fields: [supplierId], references: [id])
+  recipes        Recipe[]
+  stockMovements StockMovement[]
+  purchaseItems  PurchaseItem[]
+  wastages       Wastage[]
+
+  @@index([branchId])
+  @@index([deletedAt])
+  @@map("ingredients")
+}
+
+model Recipe {
+  id         Int     @id @default(autoincrement())
+  menuItemId Int
+  variantId  Int?
+  ingredientId Int
+  quantity   Decimal @db.Decimal(10, 3)
+  unit       String  @db.VarChar(20)
+
+  menuItem   MenuItem    @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  variant    ItemVariant? @relation(fields: [variantId], references: [id])
+  ingredient Ingredient  @relation(fields: [ingredientId], references: [id])
+
+  @@unique([menuItemId, variantId, ingredientId])
+  @@map("recipes")
+}
+
+model StockMovement {
+  id           Int               @id @default(autoincrement())
+  ingredientId Int
+  branchId     Int
+  type         StockMovementType
+  quantity     Decimal           @db.Decimal(10, 3)
+  costPerUnit  Decimal?          @db.Decimal(10, 2)
+  reference    String?           @db.VarChar(100) // order number, PO number, etc.
+  note         String?           @db.VarChar(255)
+  createdBy    Int
+  createdAt    DateTime          @default(now())
+
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id])
+  branch     Branch     @relation(fields: [branchId], references: [id])
+  createdByUser User    @relation(fields: [createdBy], references: [id])
+
+  @@index([ingredientId, createdAt])
+  @@map("stock_movements")
+}
+
+enum StockMovementType {
+  PURCHASE    // stock in from purchase order
+  ADJUSTMENT  // manual correction
+  DEDUCTION   // auto deduct on order serve
+  WASTAGE     // wastage entry
+  RETURN      // returned to supplier
+}
+
+model Wastage {
+  id           Int      @id @default(autoincrement())
+  branchId     Int
+  ingredientId Int
+  quantity     Decimal  @db.Decimal(10, 3)
+  reason       String   @db.VarChar(255)
+  recordedBy   Int
+  createdAt    DateTime @default(now())
+
+  branch       Branch     @relation(fields: [branchId], references: [id])
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+  recordedByUser User     @relation(fields: [recordedBy], references: [id])
+
+  @@map("wastages")
+}
+
+// =============================================================================
+// SUPPLIERS & PURCHASES
+// =============================================================================
+
+model Supplier {
+  id            Int      @id @default(autoincrement())
+  branchId      Int
+  name          String   @db.VarChar(100)
+  contactPerson String?  @db.VarChar(100)
+  phone         String   @db.VarChar(20)
+  email         String?  @db.VarChar(100)
+  address       String?  @db.VarChar(255)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+
+  branch         Branch          @relation(fields: [branchId], references: [id])
+  ingredients    Ingredient[]
+  purchaseOrders PurchaseOrder[]
+
+  @@index([branchId])
+  @@map("suppliers")
+}
+
+model PurchaseOrder {
+  id          Int                 @id @default(autoincrement())
+  branchId    Int
+  supplierId  Int
+  orderNumber String              @unique @db.VarChar(50)
+  status      PurchaseOrderStatus @default(DRAFT)
+  totalAmount Decimal             @db.Decimal(10, 2)
+  orderedAt   DateTime?
+  receivedAt  DateTime?
+  notes       String?             @db.Text
+  createdBy   Int
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  branch        Branch         @relation(fields: [branchId], references: [id])
+  supplier      Supplier       @relation(fields: [supplierId], references: [id])
+  createdByUser User           @relation(fields: [createdBy], references: [id])
+  items         PurchaseItem[]
+
+  @@index([branchId, status])
+  @@map("purchase_orders")
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  SENT
+  PARTIAL
+  RECEIVED
+  CANCELLED
+}
+
+model PurchaseItem {
+  id              Int     @id @default(autoincrement())
+  purchaseOrderId Int
+  ingredientId    Int
+  quantity        Decimal @db.Decimal(10, 3)
+  unitCost        Decimal @db.Decimal(10, 2)
+  totalCost       Decimal @db.Decimal(10, 2)
+  receivedQty     Decimal @default(0) @db.Decimal(10, 3)
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  ingredient    Ingredient    @relation(fields: [ingredientId], references: [id])
+
+  @@map("purchase_items")
+}
+
+// =============================================================================
+// TABLES & SESSIONS
+// =============================================================================
+
+model Table {
+  id          Int         @id @default(autoincrement())
+  branchId    Int
+  tableNumber String      @db.VarChar(10)
+  capacity    Int         @default(4)
+  section     String?     @db.VarChar(50)   // Indoor, Outdoor, VIP, Rooftop
+  status      TableStatus @default(AVAILABLE)
+  qrToken     String      @unique @default(uuid())
+  qrImageUrl  String?     @db.VarChar(500)
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  branch        Branch         @relation(fields: [branchId], references: [id])
+  sessions      TableSession[]
+  reservations  Reservation[]
+
+  @@unique([branchId, tableNumber])
+  @@index([branchId, status])
+  @@map("tables")
+}
+
+enum TableStatus {
+  AVAILABLE
+  OCCUPIED
+  RESERVED
+  CLEANING
+  INACTIVE
+}
+
+model TableSession {
+  id         Int               @id @default(autoincrement())
+  tableId    Int
+  openedBy   Int?
+  openedAt   DateTime          @default(now())
+  closedAt   DateTime?
+  status     TableSessionStatus @default(OPEN)
+
+  table  Table   @relation(fields: [tableId], references: [id])
+  orders Order[]
+
+  @@index([tableId, status])
+  @@map("table_sessions")
+}
+
+enum TableSessionStatus {
+  OPEN
+  BILLED
+  CLOSED
+}
+
+// =============================================================================
+// ORDERS
+// =============================================================================
+
+model Order {
+  id             Int         @id @default(autoincrement())
+  orderNumber    String      @unique @db.VarChar(30)
+  branchId       Int
+  tableSessionId Int?
+  customerId     Int?
+  assignedTo     Int?        // waiter userId
+  createdByUserId Int?       // staff who created
+  type           OrderType
+  status         OrderStatus @default(PENDING)
+  subtotal       Decimal     @db.Decimal(10, 2)
+  discountAmount Decimal     @default(0) @db.Decimal(10, 2)
+  taxAmount      Decimal     @default(0) @db.Decimal(10, 2)
+  serviceCharge  Decimal     @default(0) @db.Decimal(10, 2)
+  deliveryCharge Decimal     @default(0) @db.Decimal(10, 2)
+  totalAmount    Decimal     @db.Decimal(10, 2)
+  notes          String?     @db.Text
+  couponId       Int?
+  guestName      String?     @db.VarChar(100)
+  guestPhone     String?     @db.VarChar(20)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  deletedAt      DateTime?
+
+  branch        Branch               @relation(fields: [branchId], references: [id])
+  tableSession  TableSession?        @relation(fields: [tableSessionId], references: [id])
+  customer      Customer?            @relation(fields: [customerId], references: [id])
+  assignedUser  User?                @relation("OrderAssignedTo", fields: [assignedTo], references: [id])
+  createdByUser User?                @relation("OrderCreatedBy", fields: [createdByUserId], references: [id])
+  coupon        Coupon?              @relation(fields: [couponId], references: [id])
+
+  items           OrderItem[]
+  payments        Payment[]
+  statusHistory   OrderStatusHistory[]
+  kitchenTickets  KitchenTicket[]
+  delivery        Delivery?
+  refunds         Refund[]
+  couponUsage     CouponUsage?
+  review          Review?
+  loyaltyTx       LoyaltyTransaction?
+
+  @@index([branchId, status, type])
+  @@index([orderNumber])
+  @@index([customerId])
+  @@index([createdAt])
+  @@index([deletedAt])
+  @@map("orders")
+}
+
+enum OrderType {
+  DINE_IN
+  TAKEAWAY
+  DELIVERY
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  READY
+  SERVED          // dine-in only
+  BILLED          // dine-in only
+  PICKED_UP       // takeaway only
+  ASSIGNED        // delivery only
+  OUT_FOR_DELIVERY // delivery only
+  DELIVERED       // delivery only
+  PAID
+  CANCELLED
+  VOIDED
+  FAILED          // delivery failed
+  RETURNED        // delivery returned
+}
+
+model OrderItem {
+  id             Int         @id @default(autoincrement())
+  orderId        Int
+  menuItemId     Int
+  variantId      Int?
+  quantity       Int
+  unitPrice      Decimal     @db.Decimal(10, 2)
+  totalPrice     Decimal     @db.Decimal(10, 2)
+  notes          String?     @db.VarChar(255)
+  status         OrderItemStatus @default(PENDING)
+  kitchenStation String      @default("MAIN") @db.VarChar(30)
+
+  order    Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem MenuItem     @relation(fields: [menuItemId], references: [id])
+  variant  ItemVariant? @relation(fields: [variantId], references: [id])
+  addons   OrderItemAddon[]
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+enum OrderItemStatus {
+  PENDING
+  PREPARING
+  READY
+  SERVED
+  CANCELLED
+}
+
+model OrderItemAddon {
+  id          Int     @id @default(autoincrement())
+  orderItemId Int
+  addonId     Int
+  price       Decimal @db.Decimal(10, 2)
+
+  orderItem OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  addon     Addon     @relation(fields: [addonId], references: [id])
+
+  @@map("order_item_addons")
+}
+
+model OrderStatusHistory {
+  id         Int         @id @default(autoincrement())
+  orderId    Int
+  fromStatus OrderStatus?
+  toStatus   OrderStatus
+  changedBy  Int?
+  note       String?     @db.VarChar(255)
+  changedAt  DateTime    @default(now())
+
+  order      Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  changedByUser User? @relation("StatusChangedBy", fields: [changedBy], references: [id])
+
+  @@index([orderId])
+  @@map("order_status_history")
+}
+
+// =============================================================================
+// KITCHEN
+// =============================================================================
+
+model KitchenTicket {
+  id          Int                  @id @default(autoincrement())
+  orderId     Int
+  branchId    Int
+  station     String               @db.VarChar(30)   // GRILL, FRY, DRINKS, DESSERT, MAIN
+  status      KitchenTicketStatus  @default(NEW)
+  printedAt   DateTime?
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime             @default(now())
+
+  order  Order  @relation(fields: [orderId], references: [id])
+  branch Branch @relation(fields: [branchId], references: [id])
+
+  @@index([branchId, station, status])
+  @@map("kitchen_tickets")
+}
+
+enum KitchenTicketStatus {
+  NEW
+  PREPARING
+  READY
+  BUMPED
+}
+
+// =============================================================================
+// PAYMENTS & CASH REGISTER
+// =============================================================================
+
+model PaymentMethod {
+  id       Int     @id @default(autoincrement())
+  branchId Int
+  name     String  @db.VarChar(50)   // Cash, Card, bKash, Nagad, SSLCommerz
+  type     String  @db.VarChar(20)   // CASH, DIGITAL, CARD, GATEWAY
+  isActive Boolean @default(true)
+  config   Json?   // gateway config, account numbers, etc.
+
+  branch   Branch    @relation(fields: [branchId], references: [id])
+  payments Payment[]
+
+  @@map("payment_methods")
+}
+
+model Payment {
+  id              Int           @id @default(autoincrement())
+  orderId         Int
+  paymentMethodId Int?
+  method          String        @db.VarChar(50)   // Cash, bKash, Card, etc.
+  amount          Decimal       @db.Decimal(10, 2)
+  transactionId   String?       @db.VarChar(100)
+  gatewayResponse Json?
+  status          PaymentStatus @default(PENDING)
+  processedBy     Int?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  order         Order         @relation(fields: [orderId], references: [id])
+  paymentMethod PaymentMethod? @relation(fields: [paymentMethodId], references: [id])
+  refunds       Refund[]
+
+  @@index([orderId])
+  @@index([status])
+  @@map("payments")
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+  PARTIAL_REFUND
+}
+
+model CashRegisterSession {
+  id               Int                     @id @default(autoincrement())
+  branchId         Int
+  cashierId        Int
+  openingBalance   Decimal                 @db.Decimal(10, 2)
+  closingBalance   Decimal?                @db.Decimal(10, 2)
+  expectedBalance  Decimal?                @db.Decimal(10, 2)
+  shortage         Decimal?                @db.Decimal(10, 2)
+  excess           Decimal?                @db.Decimal(10, 2)
+  openedAt         DateTime                @default(now())
+  closedAt         DateTime?
+  status           CashRegisterStatus      @default(OPEN)
+  notes            String?                 @db.Text
+
+  branch        Branch          @relation(fields: [branchId], references: [id])
+  cashier       User            @relation(fields: [cashierId], references: [id])
+  moneyReceived MoneyReceived[]
+
+  @@index([branchId, status])
+  @@map("cash_register_sessions")
+}
+
+enum CashRegisterStatus {
+  OPEN
+  CLOSED
+  RECONCILED
+}
+
+model MoneyReceived {
+  id                   Int      @id @default(autoincrement())
+  branchId             Int
+  cashRegisterSessionId Int?
+  source               String   @db.VarChar(100)   // Order, Advance, Deposit, etc.
+  amount               Decimal  @db.Decimal(10, 2)
+  paymentMethod        String   @db.VarChar(50)
+  referenceNo          String?  @db.VarChar(100)
+  notes                String?  @db.VarChar(255)
+  createdBy            Int
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  branch             Branch               @relation(fields: [branchId], references: [id])
+  cashRegisterSession CashRegisterSession? @relation(fields: [cashRegisterSessionId], references: [id])
+  createdByUser      User                 @relation(fields: [createdBy], references: [id])
+
+  @@index([branchId, createdAt])
+  @@map("money_received")
+}
+
+model Refund {
+  id           Int          @id @default(autoincrement())
+  orderId      Int
+  paymentId    Int?
+  amount       Decimal      @db.Decimal(10, 2)
+  reason       String       @db.Text
+  status       RefundStatus @default(PENDING)
+  requestedBy  Int
+  approvedBy   Int?
+  requestedAt  DateTime     @default(now())
+  resolvedAt   DateTime?
+
+  order       Order   @relation(fields: [orderId], references: [id])
+  payment     Payment? @relation(fields: [paymentId], references: [id])
+  requestedByUser User @relation("RefundRequestedBy", fields: [requestedBy], references: [id])
+  approvedByUser  User? @relation("RefundApprovedBy", fields: [approvedBy], references: [id])
+
+  @@map("refunds")
+}
+
+enum RefundStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PROCESSED
+}
+
+// =============================================================================
+// RESERVATIONS
+// =============================================================================
+
+model Reservation {
+  id              Int               @id @default(autoincrement())
+  branchId        Int
+  customerId      Int?
+  guestName       String            @db.VarChar(100)
+  guestPhone      String            @db.VarChar(20)
+  guestEmail      String?           @db.VarChar(100)
+  reservedAt      DateTime
+  partySize       Int
+  tablePreference String?           @db.VarChar(100)   // Indoor, VIP, etc.
+  tableId         Int?
+  status          ReservationStatus @default(PENDING)
+  notes           String?           @db.Text
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  branch   Branch    @relation(fields: [branchId], references: [id])
+  customer Customer? @relation(fields: [customerId], references: [id])
+  table    Table?    @relation(fields: [tableId], references: [id])
+
+  @@index([branchId, reservedAt])
+  @@map("reservations")
+}
+
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  SEATED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+// =============================================================================
+// DELIVERY
+// =============================================================================
+
+model DeliveryZone {
+  id               Int      @id @default(autoincrement())
+  branchId         Int
+  name             String   @db.VarChar(100)
+  deliveryCharge   Decimal  @db.Decimal(10, 2)
+  estimatedMinutes Int      @default(30)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+
+  branch     Branch     @relation(fields: [branchId], references: [id])
+  deliveries Delivery[]
+
+  @@map("delivery_zones")
+}
+
+model Rider {
+  id            Int      @id @default(autoincrement())
+  userId        Int      @unique
+  branchId      Int
+  vehicleType   String   @db.VarChar(30)   // Motorcycle, Bicycle, Car
+  vehicleNumber String?  @db.VarChar(30)
+  isAvailable   Boolean  @default(true)
+  totalEarnings Decimal  @default(0) @db.Decimal(10, 2)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user       User       @relation(fields: [userId], references: [id])
+  branch     Branch     @relation(fields: [branchId], references: [id])
+  deliveries Delivery[]
+
+  @@map("riders")
+}
+
+model Delivery {
+  id             Int            @id @default(autoincrement())
+  orderId        Int            @unique
+  riderId        Int?
+  deliveryZoneId Int?
+  addressId      Int?
+  status         DeliveryStatus @default(PENDING)
+  codAmount      Decimal        @default(0) @db.Decimal(10, 2)
+  codCollected   Boolean        @default(false)
+  assignedAt     DateTime?
+  pickedUpAt     DateTime?
+
+  deliveredAt    DateTime?
+  notes          String?        @db.VarChar(255)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  order        Order         @relation(fields: [orderId], references: [id])
+  rider        Rider?        @relation(fields: [riderId], references: [id])
+  deliveryZone DeliveryZone? @relation(fields: [deliveryZoneId], references: [id])
+  address      Address?      @relation(fields: [addressId], references: [id])
+
+  @@index([riderId, status])
+  @@map("deliveries")
+}
+
+enum DeliveryStatus {
+  PENDING
+  ASSIGNED
+  PICKED_UP
+  ON_THE_WAY
+  DELIVERED
+  FAILED
+  RETURNED
+}
+
+// =============================================================================
+// EXPENSES
+// =============================================================================
+
+model ExpenseCategory {
+  id       Int     @id @default(autoincrement())
+  branchId Int
+  name     String  @db.VarChar(100)
+  isActive Boolean @default(true)
+
+  branch   Branch    @relation(fields: [branchId], references: [id])
+  expenses Expense[]
+
+  @@map("expense_categories")
+}
+
+model Expense {
+  id                 Int      @id @default(autoincrement())
+  branchId           Int
+  expenseCategoryId  Int
+  description        String   @db.VarChar(255)
+  amount             Decimal  @db.Decimal(10, 2)
+  paymentMethod      String   @db.VarChar(50)
+  receiptUrl         String?  @db.VarChar(500)
+  expenseDate        DateTime @db.Date
+  createdBy          Int
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  branch          Branch          @relation(fields: [branchId], references: [id])
+  expenseCategory ExpenseCategory @relation(fields: [expenseCategoryId], references: [id])
+  createdByUser   User            @relation("ExpenseCreatedBy", fields: [createdBy], references: [id])
+
+  @@index([branchId, expenseDate])
+  @@map("expenses")
+}
+
+// =============================================================================
+// COUPONS & LOYALTY
+// =============================================================================
+
+model Coupon {
+  id              Int        @id @default(autoincrement())
+  branchId        Int
+  code            String     @db.VarChar(30)
+  type            CouponType
+  value           Decimal    @db.Decimal(10, 2)   // % or flat amount
+  minOrderAmount  Decimal    @default(0) @db.Decimal(10, 2)
+  maxDiscount     Decimal?   @db.Decimal(10, 2)   // cap for % discount
+  usageLimit      Int?
+  usedCount       Int        @default(0)
+  validFrom       DateTime
+  validUntil      DateTime
+  isActive        Boolean    @default(true)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  deletedAt       DateTime?
+
+  branch      Branch        @relation(fields: [branchId], references: [id])
+  orders      Order[]
+  usages      CouponUsage[]
+
+  @@unique([branchId, code])
+  @@index([code, isActive])
+  @@map("coupons")
+}
+
+enum CouponType {
+  PERCENTAGE
+  FLAT
+  FREE_DELIVERY
+}
+
+model CouponUsage {
+  id              Int      @id @default(autoincrement())
+  couponId        Int
+  orderId         Int      @unique
+  customerId      Int?
+  discountApplied Decimal  @db.Decimal(10, 2)
+  usedAt          DateTime @default(now())
+
+  coupon   Coupon    @relation(fields: [couponId], references: [id])
+  order    Order     @relation(fields: [orderId], references: [id])
+  customer Customer? @relation(fields: [customerId], references: [id])
+
+  @@map("coupon_usages")
+}
+
+model LoyaltyTransaction {
+  id          Int                  @id @default(autoincrement())
+  customerId  Int
+  orderId     Int?                 @unique
+  type        LoyaltyTransactionType
+  points      Int
+  description String               @db.VarChar(255)
+  createdAt   DateTime             @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id])
+  order    Order?   @relation(fields: [orderId], references: [id])
+
+  @@index([customerId])
+  @@map("loyalty_transactions")
+}
+
+enum LoyaltyTransactionType {
+  EARN
+  REDEEM
+  BONUS
+  EXPIRE
+  ADJUST
+}
+
+// =============================================================================
+// REVIEWS
+// =============================================================================
+
+model Review {
+  id           Int      @id @default(autoincrement())
+  orderId      Int      @unique
+  customerId   Int
+  branchId     Int
+  foodRating   Int      // 1-5
+  serviceRating Int?    // 1-5
+  overallRating Int     // 1-5
+  comment      String?  @db.Text
+  managerReply String?  @db.Text
+  isVisible    Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  order    Order    @relation(fields: [orderId], references: [id])
+  customer Customer @relation(fields: [customerId], references: [id])
+  branch   Branch   @relation(fields: [branchId], references: [id])
+
+  @@index([branchId, isVisible])
+  @@map("reviews")
+}
+
+// =============================================================================
+// NOTIFICATIONS
+// =============================================================================
+
+model Notification {
+  id         Int                  @id @default(autoincrement())
+  userId     Int?
+  customerId Int?
+  type       NotificationType
+  title      String               @db.VarChar(255)
+  body       String               @db.Text
+  data       Json?                // extra payload
+  isRead     Boolean              @default(false)
+  createdAt  DateTime             @default(now())
+
+  user     User?     @relation(fields: [userId], references: [id])
+  customer Customer? @relation(fields: [customerId], references: [id])
+
+  @@index([userId, isRead])
+  @@index([customerId, isRead])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  ORDER_STATUS
+  PAYMENT
+  LOW_STOCK
+  DELIVERY
+  REVIEW
+  RESERVATION
+  SALARY
+  SYSTEM
+  PROMOTION
+}
+
+model DeviceToken {
+  id         Int      @id @default(autoincrement())
+  userId     Int?
+  customerId Int?
+  token      String   @unique @db.VarChar(500)
+  platform   String   @db.VarChar(10)   // ios, android, web
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user     User?     @relation(fields: [userId], references: [id])
+  customer Customer? @relation(fields: [customerId], references: [id])
+
+  @@map("device_tokens")
+}
+
+// =============================================================================
+// SETTINGS & AUDIT
+// =============================================================================
+
+model Setting {
+  id        Int      @id @default(autoincrement())
+  branchId  Int?     // null = global setting
+  key       String   @db.VarChar(100)
+  value     String   @db.Text
+  type      String   @default("string") @db.VarChar(20) // string, number, boolean, json
+  updatedAt DateTime @updatedAt
+  updatedBy Int?
+
+  branch      Branch? @relation(fields: [branchId], references: [id])
+  updatedByUser User? @relation(fields: [updatedBy], references: [id])
+
+  @@unique([branchId, key])
+  @@map("settings")
+}
+
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  userId     Int?
+  action     String   @db.VarChar(50)   // CREATE, UPDATE, DELETE, LOGIN, LOGOUT, etc.
+  module     String   @db.VarChar(50)
+  entityType String?  @db.VarChar(50)
+  entityId   Int?
+  oldValues  Json?
+  newValues  Json?
+  ipAddress  String?  @db.VarChar(45)
+  userAgent  String?  @db.VarChar(500)
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([module, entityType])
+  @@map("audit_logs")
+}
