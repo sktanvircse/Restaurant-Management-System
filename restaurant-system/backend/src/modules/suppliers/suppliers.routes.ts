@@ -17,10 +17,26 @@ const router = Router();
 // SUPPLIERS
 // ==========================================
 router.get(
+  '/',
+  authenticate,
+  authorize('suppliers', 'view'),
+  suppliersController.getSuppliers
+);
+
+router.get(
   '/suppliers',
   authenticate,
   authorize('suppliers', 'view'),
   suppliersController.getSuppliers
+);
+
+router.post(
+  '/',
+  authenticate,
+  authorize('suppliers', 'create'),
+  auditLog('suppliers', 'CREATE_SUPPLIER'),
+  validate({ body: createSupplierSchema }),
+  suppliersController.createSupplier
 );
 
 router.post(
@@ -33,12 +49,29 @@ router.post(
 );
 
 router.put(
+  '/:id',
+  authenticate,
+  authorize('suppliers', 'edit'),
+  auditLog('suppliers', 'UPDATE_SUPPLIER'),
+  validate({ body: updateSupplierSchema }),
+  suppliersController.updateSupplier
+);
+
+router.put(
   '/suppliers/:id',
   authenticate,
   authorize('suppliers', 'edit'),
   auditLog('suppliers', 'UPDATE_SUPPLIER'),
   validate({ body: updateSupplierSchema }),
   suppliersController.updateSupplier
+);
+
+router.delete(
+  '/:id',
+  authenticate,
+  authorize('suppliers', 'delete'),
+  auditLog('suppliers', 'DELETE_SUPPLIER'),
+  suppliersController.deleteSupplier
 );
 
 router.delete(

@@ -29,17 +29,29 @@ export default function CustomerMenuPage() {
   const [selectedAddons, setSelectedAddons] = useState<any[]>([]);
   const [notes, setNotes] = useState('');
 
-  const { data: categories = [], isLoading } = useQuery({
-    queryKey: ['customer-menu'],
+  const { data: categories = [], isLoading: loadingCategories } = useQuery({
+    queryKey: ['customer-categories'],
     queryFn: async () => {
       const res = await api.get('/menu/categories');
-      return res.data.data;
+      return res.data.data || [];
     },
   });
 
+  const { data: menuItems = [], isLoading: loadingItems } = useQuery({
+    queryKey: ['customer-items'],
+    queryFn: async () => {
+      const res = await api.get('/menu/items');
+      const data = res.data.data;
+      return Array.isArray(data) ? data : data?.items || [];
+    },
+  });
+
+  const isLoading = loadingCategories || loadingItems;
+
   const handleAddToCart = () => {
     if (!activeItem) return;
-    const price = selectedVariant ? Number(selectedVariant.price) : Number(activeItem.price);
+    const basePrice = Number(activeItem.basePrice || activeItem.price || 0);
+    const price = selectedVariant ? Number(selectedVariant.price || selectedVariant.priceModifier ? basePrice + Number(selectedVariant.priceModifier) : basePrice) : basePrice;
     addItem({
       menuItemId: activeItem.id,
       name: activeItem.name,
@@ -56,12 +68,10 @@ export default function CustomerMenuPage() {
     setNotes('');
   };
 
-  const allItems = categories.flatMap((cat: any) =>
-    cat.menuItems.map((item: any) => ({ ...item, categoryId: cat.id }))
-  );
+  const allItems = Array.isArray(menuItems) ? menuItems : [];
 
   const filteredItems = allItems.filter((item: any) => {
-    const matchesCat = selectedCategory === 'ALL' || item.categoryId === selectedCategory;
+    const matchesCat = selectedCategory === 'ALL' || item.categoryId === Number(selectedCategory) || item.categoryId === selectedCategory;
     const matchesQuery = item.name.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCat && matchesQuery && item.isAvailable;
   });
@@ -114,9 +124,9 @@ export default function CustomerMenuPage() {
             {categories.map((c: any) => (
               <button
                 key={c.id}
-                onClick={() => setSelectedCategory(c.id)}
+                onClick={() => setSelectedCategory(String(c.id))}
                 className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition ${
-                  selectedCategory === c.id
+                  selectedCategory === String(c.id)
                     ? 'bg-orange-600 text-white shadow-md'
                     : 'bg-white border text-stone-700 hover:bg-stone-50'
                 }`}
@@ -151,7 +161,7 @@ export default function CustomerMenuPage() {
 
                 <div className="flex items-center justify-between mt-4 pt-4 border-t border-stone-100">
                   <span className="text-lg font-black text-stone-900">
-                    ৳{Number(item.price).toFixed(2)}
+                    ৳{Number(item.basePrice || item.price || 0).toFixed(2)}
                   </span>
                   <button
                     onClick={() => {

@@ -69,12 +69,22 @@ export default function POSPage() {
 
   const branchId = typeof window !== 'undefined' ? localStorage.getItem('branchId') || '' : '';
 
-  // Load Categories & Menu Items
-  const { data: menuData } = useQuery({
-    queryKey: ['pos-menu', branchId],
+  // Load Categories
+  const { data: categories = [] } = useQuery({
+    queryKey: ['pos-categories', branchId],
     queryFn: async () => {
       const res = await api.get('/menu/categories');
-      return res.data.data;
+      return res.data.data || [];
+    },
+  });
+
+  // Load Menu Items
+  const { data: menuItemsData } = useQuery({
+    queryKey: ['pos-items', branchId],
+    queryFn: async () => {
+      const res = await api.get('/menu/items');
+      const data = res.data.data;
+      return Array.isArray(data) ? data : data?.items || [];
     },
   });
 
@@ -237,12 +247,10 @@ export default function POSPage() {
   });
 
   // Filter items
-  const allItems = menuData
-    ? menuData.flatMap((cat: any) => cat.menuItems.map((item: any) => ({ ...item, categoryId: cat.id })))
-    : [];
+  const allItems = Array.isArray(menuItemsData) ? menuItemsData : [];
 
   const filteredItems = allItems.filter((item: any) => {
-    const matchesCat = selectedCategory === 'ALL' || item.categoryId === selectedCategory;
+    const matchesCat = selectedCategory === 'ALL' || item.categoryId === Number(selectedCategory) || item.categoryId === selectedCategory;
     const matchesQuery = item.name.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCat && matchesQuery && item.isAvailable;
   });
@@ -354,12 +362,12 @@ export default function POSPage() {
             >
               All Items
             </button>
-            {menuData?.map((cat: any) => (
+            {categories.map((cat: any) => (
               <button
                 key={cat.id}
-                onClick={() => setSelectedCategory(cat.id)}
+                onClick={() => setSelectedCategory(String(cat.id))}
                 className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider whitespace-nowrap transition ${
-                  selectedCategory === cat.id
+                  selectedCategory === String(cat.id)
                     ? 'bg-indigo-600 text-white shadow-md'
                     : 'bg-white text-gray-700 border hover:bg-gray-50'
                 }`}
@@ -408,7 +416,7 @@ export default function POSPage() {
                   </div>
                   <div className="flex items-center justify-between mt-3 pt-3 border-t">
                     <span className="text-base font-black text-indigo-700">
-                      ৳{Number(item.price).toFixed(2)}
+                      ৳{Number(item.basePrice || item.price || 0).toFixed(2)}
                     </span>
                     <span className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100">
                       <Plus className="w-4 h-4" />
