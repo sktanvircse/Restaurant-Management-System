@@ -15,6 +15,9 @@ import { apiSuccess } from './utils/response';
 // Import Routes
 import { authRoutes } from './modules/auth/auth.routes';
 import { uploadRoutes } from './modules/upload/upload.routes';
+import { menuRoutes } from './modules/menu/menu.routes';
+import { tablesRoutes } from './modules/tables/tables.routes';
+import { ordersRoutes } from './modules/orders/orders.routes';
 
 export const createApp = (): Application => {
   const app = express();
@@ -85,6 +88,9 @@ export const createApp = (): Application => {
   const apiRouter = express.Router();
   apiRouter.use('/auth', authRoutes);
   apiRouter.use('/upload', uploadRoutes);
+  apiRouter.use('/menu', menuRoutes);
+  apiRouter.use('/tables', tablesRoutes);
+  apiRouter.use('/orders', ordersRoutes);
 
   app.use('/api/v1', apiRouter);
 
