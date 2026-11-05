@@ -22,6 +22,10 @@ import { paymentsRoutes } from './modules/payments/payments.routes';
 import { cashRegisterRoutes } from './modules/cash-register/cash-register.routes';
 import { moneyReceivedRoutes } from './modules/money-received/money-received.routes';
 import { refundsRoutes } from './modules/refunds/refunds.routes';
+import { deliveryRoutes } from './modules/delivery/delivery.routes';
+import { reservationsRoutes } from './modules/reservations/reservations.routes';
+import { inventoryRoutes } from './modules/inventory/inventory.routes';
+import { suppliersRoutes } from './modules/suppliers/suppliers.routes';
 
 export const createApp = (): Application => {
   const app = express();
@@ -99,6 +103,10 @@ export const createApp = (): Application => {
   apiRouter.use('/cash-register', cashRegisterRoutes);
   apiRouter.use('/money-received', moneyReceivedRoutes);
   apiRouter.use('/refunds', refundsRoutes);
+  apiRouter.use('/delivery', deliveryRoutes);
+  apiRouter.use('/reservations', reservationsRoutes);
+  apiRouter.use('/inventory', inventoryRoutes);
+  apiRouter.use('/supply', suppliersRoutes);
 
   app.use('/api/v1', apiRouter);
 
